@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.27130.2003
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FsInvaders", "FsInvaders\FsInvaders.fsproj", "{6F4146CF-512C-4E85-9D1A-BC397AFC16AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TypeInspect", "TypeInspect\TypeInspect.csproj", "{E60A7223-157E-4D83-AF04-C2C37AFABB9E}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6F4146CF-512C-4E85-9D1A-BC397AFC16AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F4146CF-512C-4E85-9D1A-BC397AFC16AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F4146CF-512C-4E85-9D1A-BC397AFC16AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F4146CF-512C-4E85-9D1A-BC397AFC16AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E60A7223-157E-4D83-AF04-C2C37AFABB9E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E60A7223-157E-4D83-AF04-C2C37AFABB9E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E60A7223-157E-4D83-AF04-C2C37AFABB9E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E60A7223-157E-4D83-AF04-C2C37AFABB9E}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {0A3A0D6A-DF28-4955-ACD9-B08C86D9EED9}
+	EndGlobalSection
+EndGlobal

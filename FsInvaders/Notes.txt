@@ -1,0 +1,7 @@
+﻿Determining the next move
+
+Should invaders move is determined by the number of invaders left, the total number of invaders and the current frame
+
+
+
+Invaders just need the total area currently occupied 
