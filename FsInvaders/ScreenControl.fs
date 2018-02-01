@@ -9,6 +9,7 @@ open Logic
 open GameParameters
 open System
 open Particles
+open GameLoop
 open GameLoop.GameState
 
 type ScreenControl() as this =
@@ -30,6 +31,8 @@ type ScreenControl() as this =
         let random = new Random()
 
         let explosions = ResizeArray<ParticleCloud.ParticleCloud>()
+
+        let animations = {Intro = Animations.testAnimation graphicsRef}
 
         member val GameState = GameLoop.GameState.State.Default with get, set
 
@@ -84,18 +87,18 @@ type ScreenControl() as this =
                 | LevelComplete -> drawStringCentre Brushes.Yellow "Level complete"
                 | GameOver -> drawStringCentre Brushes.Red "Game Over"
 
-            let drawLevel ({LevelState = levelState; Lives = lives} as gameState) =
-                drawHud gameState.Level lives
+            let drawLevel ({LevelState = levelState; SubState = subState} as gameState) =
+                drawHud subState.Level subState.Lives
                 starFields |> List.iter (StarField.draw surface)
                 match levelState with
                 | WaitScreen (screenType,_) -> drawWaitScreen screenType gameState
                 | Level levelData ->
                     e.Graphics.TranslateTransform(0.0f, float32 hudHeight)            
-                    DrawInvaders.DrawInvaders surface levelData.InvaderData.Invaders
+                    DrawInvaders.DrawInvaders e.Graphics levelData.InvaderData.Invaders
                     if levelData.PlayerHitFrameCount <= 0 then
-                        DrawPlayer.Draw surface levelData.PlayerX (this.Size.Height - hudHeight)
-                    levelData.PlayerShots |> List.iter (DrawPlayer.DrawShot surface)
-                    levelData.InvaderShots |> List.iter (DrawInvaders.DrawShot surface)
+                        DrawPlayer.Draw e.Graphics levelData.PlayerX ((this.Size.Height - hudHeight) - PlayerHeight)
+                    levelData.PlayerShots |> List.iter (DrawPlayer.DrawShot e.Graphics)
+                    levelData.InvaderShots |> List.iter (DrawInvaders.DrawShot e.Graphics)
 
             use brush = new SolidBrush(Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255)))
 
@@ -128,6 +131,6 @@ type ScreenControl() as this =
                         explosions.RemoveAt(i)
                 )
 
-            this.GameState <- GameLoop.run this.GameState (Size.create (this.Size.Width) (this.Size.Height - hudHeight)) calculateExplosions {Intro=Animations.testAnimation graphicsRef}
+            this.GameState <- GameLoop.run this.GameState (Size.create (this.Size.Width) (this.Size.Height - hudHeight)) calculateExplosions animations
                     
     end

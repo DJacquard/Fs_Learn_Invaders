@@ -6,9 +6,12 @@ open Game
 type SysPoint = System.Drawing.Point
 type SysSize = System.Drawing.Size
 type SysRectangle = System.Drawing.Rectangle
+type SysPointF = System.Drawing.PointF
 
 
 let PointToSys p = SysPoint(p.X, p.Y) 
+
+let PointToSysF p = SysPointF(float32 p.X, float32 p.Y)
 
 let SizeToSys s = SysSize(s.Width, s.Height)
 
@@ -22,14 +25,14 @@ module DrawSurface =
 
     let infiniteSurface g = (g, Size.Empty) |> Surface
 
-    let FillRectangle (Surface (g, _)) (brush: Brush) (rect: Rectangle) =
+    let FillRectangle (g: Graphics) (brush: Brush) (rect: Rectangle) =
         g.FillRectangle(brush, rect)
 
     let inline DrawPointF (Surface (g, _)) (brush: Brush) x y =
         g.FillRectangle(brush, Rectangle(Point(int x, int y), Size(1, 1)))
 
-    let drawRect surface brush rectangle =
-        FillRectangle (infiniteSurface surface) brush (RectangleToSys rectangle)
+    let drawRect (g: Graphics) brush rectangle =
+        FillRectangle g brush (RectangleToSys rectangle)
 
     type DrawingFunctions = {
         drawRect: Brush->Game.DomainTypes.Rectangle->unit

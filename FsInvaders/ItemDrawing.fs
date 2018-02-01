@@ -23,7 +23,7 @@ module DrawPlayer =
     open GameParameters
 
     let Draw surface position height =
-        FillRectangle surface Brushes.Gray (SysRectangle(Point(position, height - PlayerHeight), Size(PlayerWidth, PlayerHeight)))
+        FillRectangle surface Brushes.Gray (SysRectangle(Point(position, height), Size(PlayerWidth, PlayerHeight)))
 
     let DrawShot surface point =
         FillRectangle surface Brushes.Red (SysRectangle(PointToSys point, Size(2, 20)))

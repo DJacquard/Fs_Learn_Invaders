@@ -8,10 +8,6 @@ open Invaders
 
 open Animation
 
-type InGameAnimations = {
-    Intro: Animation
-    }
-
 module GameState =
     [<Struct>]
     type LevelNumber = LevelNumber of int
@@ -27,7 +23,7 @@ module GameState =
 
     let modifyLives (NumberOfLives l) = NumberOfLives << (fun i -> if i < 0y then failwith "number of lives cannot be negative" else uint8 i) << (+) (int8 l) << int8
 
-    let valueLives (NumberOfLives i) = i
+    let valueLives (NumberOfLives i) = int i
 
     type ScreenWait = ScreenWait of int
     
@@ -35,12 +31,21 @@ module GameState =
 
     type LevelState = WaitScreen of WaitScreen * ScreenWait | Level of Level.T
 
-    type InGameState = { LevelState: LevelState; Level: LevelNumber; Lives: NumberOfLives;  }
+    type SubInGameState = {Level: LevelNumber; Lives: NumberOfLives;  }
+
+    type InGameState = { LevelState: LevelState; SubState: SubInGameState }
 
     type State = StartScreen | InGame of InGameState
         with static member Default = StartScreen
 
     type LevelResult = Continue of Level.T | PlayerDeath of Level.T | Complete
+
+type AnimationFactory = GameState.SubInGameState->Animation
+
+type InGameAnimations = {
+    Intro: AnimationFactory
+    }
+
 
 open GameState
 open InvaderBlock
@@ -101,37 +106,46 @@ let createLevel() =
 
     { Level.T.Default with InvaderData = invaders }
 
-let runWaitScreen waitScreen wait animations =
-    match wait with
-    | ScreenWait 0 as sw -> 
-        match waitScreen with
-        | LevelIntro _ -> Level (createLevel())
-        | LevelComplete -> (LevelIntro animations.Intro , ScreenWait (2*40)) |> WaitScreen
-        | GameOver -> (GameOver, sw) |> WaitScreen
-    | ScreenWait frame -> 
-        (match waitScreen with
-        | LevelIntro anim -> LevelIntro (match Animation.animate anim with Some valu -> valu)
-        | x -> x
-        , ScreenWait (frame - 1)) |> WaitScreen
+let runWaitScreen waitScreen wait animations inGameState =
+    match waitScreen with
+    | LevelIntro anim -> 
+        match Animation.animate anim with
+        | Some newAnim -> (LevelIntro newAnim, wait) |> WaitScreen
+        | None -> (createLevel()) |> Level
+    | _ ->
+        match wait with
+        | ScreenWait 0 as sw -> 
+            match waitScreen with
+            | LevelIntro _ -> Level (createLevel())
+            | LevelComplete -> (LevelIntro (animations.Intro inGameState) , ScreenWait (2*40)) |> WaitScreen
+            | GameOver -> (GameOver, sw) |> WaitScreen
+        | ScreenWait frame -> 
+            (waitScreen, ScreenWait (frame - 1)) |> WaitScreen
 
 let runLevelWrapper gameState viewSize hitShotsProcessor animationFactory =
     let updateLevelState levelState = {gameState with LevelState = levelState }
 
     match gameState.LevelState with
-    | WaitScreen (waitScreen, wait) -> {gameState with LevelState = runWaitScreen waitScreen wait animationFactory}
+    | WaitScreen (waitScreen, wait) -> {gameState with LevelState = runWaitScreen waitScreen wait animationFactory gameState.SubState}
     | Level levelData -> 
         match runLevel levelData viewSize hitShotsProcessor with
         | Continue newLevelData -> newLevelData |> Level |> updateLevelState
         | PlayerDeath newLevelData -> 
-            match modifyLives gameState.Lives (-1) with
-            | lives when NumberOfLives.IsDead lives -> { gameState with Lives = lives; LevelState = (GameOver, ScreenWait(5*40)) |> WaitScreen }
-            | lives -> {gameState with LevelState = newLevelData |> Level; Lives = lives }
+            match modifyLives gameState.SubState.Lives (-1) with
+            | lives when NumberOfLives.IsDead lives ->
+                let subState = { gameState.SubState with Lives = lives }
+                { gameState with SubState = subState; LevelState = (GameOver, ScreenWait(5*40)) |> WaitScreen }
+            | lives -> 
+                let subState = { gameState.SubState with Lives = lives }
+                {gameState with LevelState = newLevelData |> Level; SubState = subState }
         | Complete -> (LevelComplete, ScreenWait (2*40)) |> WaitScreen |> updateLevelState
     |> InGame
 
 let runStartScreen state viewSize animations =
     match KeyboardIo.IsFire() with
-    | true -> {LevelState = (LevelIntro animations.Intro, ScreenWait (2*40)) |> WaitScreen; Level = LevelNumber 1; Lives = NumberOfLives.FromInt 3} |> InGame
+    | true ->
+        let subState = {Level = LevelNumber 1; Lives = NumberOfLives.FromInt 3}
+        {LevelState = (LevelIntro (animations.Intro subState), ScreenWait (2*40)) |> WaitScreen; SubState = subState} |> InGame
     | false -> state
 
 let run state viewSize hitShotsProcessor animations =
