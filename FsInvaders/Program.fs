@@ -30,7 +30,8 @@ let main argv =
     Form.Load.Add formLoadHandler
 
     let timerHandler _ =
-        ScreenControl.Tick()
+        ()
+        //ScreenControl.Tick()
 
     use Timer = new Timer()
     Timer.Tick.Add timerHandler

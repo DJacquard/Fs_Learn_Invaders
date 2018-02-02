@@ -11,12 +11,19 @@ open System
 open Particles
 open GameLoop
 open GameLoop.GameState
+open TimingLoop
 
 type ScreenControl() as this =
     class
         inherit Control()
 
-        do this.DoubleBuffered <- true
+        do
+            let timingData, timingState = TimingLoop.InitialiseTiming()
+            let timingStateRef = ref timingState
+            let update _timingState = 
+                this.Tick()
+            Application.Idle.Add(fun _ -> TimingLoop.MessageLoop timingData timingStateRef update)
+            this.DoubleBuffered <- true
 
         let mutable frameCount = 0
 
@@ -113,10 +120,8 @@ type ScreenControl() as this =
 
             let viewSize = Size.create (this.Size.Width) (this.Size.Height)
 
-            this.Invalidate()
-
             if List.length starFields < 3 then
-                starFields <- [for i in 1 .. 3 do yield StarField.create viewSize (50 - i*10) Brushes.Gray (int (3.0**float i))]
+                starFields <- [for i in 1 .. 3 do yield StarField.create viewSize (50 - i*10) Brushes.Gray (int (2.0**float i))]
             else
                 starFields <- starFields |> List.map (StarField.move random viewSize)
 
@@ -132,5 +137,8 @@ type ScreenControl() as this =
                 )
 
             this.GameState <- GameLoop.run this.GameState (Size.create (this.Size.Width) (this.Size.Height - hudHeight)) calculateExplosions animations
+
+            this.Invalidate()
+
                     
     end
