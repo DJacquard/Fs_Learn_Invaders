@@ -1,12 +1,11 @@
 ﻿module TimingLoop
 
-open System.Diagnostics
 open System.Threading
 open NativeMethods
 open System
+open Stopwatch
 
 type TimingData = {
-    SpinsPerMilliSecond : int64
     FrameTime : int64
     MainStopwatch: Stopwatch
     FpsStopwatch: Stopwatch 
@@ -19,24 +18,12 @@ type TimingState = {
     }
 
 let InitialiseTiming() =
-    let sw = Stopwatch();
-    let wait = SpinWait();
-    let mutable count = 0L;
-    sw.Start();
-    while sw.ElapsedMilliseconds < 2000L do
-        for _i = 1 to 200 do wait.SpinOnce()
-        count <- count + 200L;
-    sw.Stop();
-
-    let spinsPerMilliSecond = count / 2000L;
-
-    let frameTime = Stopwatch.Frequency / 60L;
+    let frameTime = Stopwatch.frequency / 60L;
 
     let timingData = {
-        SpinsPerMilliSecond = spinsPerMilliSecond
         FrameTime = frameTime
-        MainStopwatch = Stopwatch()
-        FpsStopwatch = Stopwatch()
+        MainStopwatch = Stopwatch.create()
+        FpsStopwatch = Stopwatch.create()
         }
 
     let timingState = {
@@ -45,8 +32,8 @@ let InitialiseTiming() =
         Fps = 0
         }
 
-    timingData.MainStopwatch.Start()
-    timingData.FpsStopwatch.Start()
+    timingData.MainStopwatch |> start
+    timingData.FpsStopwatch |> start
 
     (timingData, timingState)
 
@@ -59,11 +46,11 @@ let MessageLoop timingData timingStateRef update =
     let spinWait = SpinWait()
     while HasNoMessages() do
         timingStateRef :=
-            if timingData.MainStopwatch.ElapsedTicks >= timingState.NextFrameTime then
+            if timingData.MainStopwatch |> elapsedTicks >= timingState.NextFrameTime then
                 let frameCount = timingState.FrameCount + 1L
                 let fps = 
                     if frameCount % 60L = 0L then
-                        frameCount * 1000L / timingData.FpsStopwatch.ElapsedMilliseconds
+                        frameCount * 1000L / (timingData.FpsStopwatch |> elapsedMilliseconds)
                         |> int
                     else
                         timingState.Fps

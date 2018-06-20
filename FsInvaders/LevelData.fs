@@ -18,7 +18,6 @@ module Level =
         Random: System.Random
         FrameCount: int 
         PlayerHitFrameCount: int
-
         }
         with
             static member Default = {InvaderData = InvaderData.Default; PlayerX = 0; PlayerShots = []; InvaderShots = []; Random = System.Random(); FrameCount = 0; PlayerHitFrameCount = 0 }

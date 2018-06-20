@@ -2,8 +2,6 @@
 
 open Animation
 
-open Drawing.DrawSurface
-
 open GameLoop.GameState
 
 open Game

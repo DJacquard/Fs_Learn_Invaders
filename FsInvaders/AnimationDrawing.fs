@@ -8,5 +8,5 @@ let draw animation graphics =
     let sprites = animation.characters |> List.map (fun c -> c.sprite)
     sprites |> List.iter (fun s -> 
                 match s.visible with
-                | true -> s.spriteType s.location
+                | true -> s.drawFunction s.location
                 | _ -> ())

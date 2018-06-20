@@ -72,7 +72,9 @@
     <Compile Include="Animations.fs" />
     <Compile Include="StarField.fs" />
     <Compile Include="AnimationDrawing.fs" />
+    <Compile Include="GameScreen.fs" />
     <Compile Include="NativeMethods.fs" />
+    <Compile Include="Stopwatch.fs" />
     <Compile Include="TimingLoop.fs" />
     <Compile Include="ScreenControl.fs" />
     <Compile Include="Form1.fs" />

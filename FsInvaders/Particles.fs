@@ -19,7 +19,7 @@ module ParticleCloud =
 
     let apply f (ParticleCloud p) = f p
 
-    let map f (ParticleCloud p) = List.map f p
+    let map f (ParticleCloud p) = p |> List.map f
 
     let mapAndUpdate f = map (update << f) 
 
@@ -39,4 +39,5 @@ module Explosion =
 
     let update explosion gravity =
         let f p = {p with SpeedY = p.SpeedY + gravity }
+        
         explosion |> mapAndUpdate f |> ParticleCloud

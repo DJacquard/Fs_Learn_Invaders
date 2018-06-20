@@ -51,7 +51,7 @@ open GameState
 open InvaderBlock
 open Invaders.Invader
 
-let runLevel levelData viewSize hitShotsProcessor =
+let runLevel levelData viewSize =
 
     if levelData.PlayerHitFrameCount = 0 then
         let invaderUpdateData = {Shots = levelData.InvaderShots; Random = levelData.Random; ViewSize = viewSize; FrameCount = levelData.FrameCount; InvaderData = levelData.InvaderData;  }
@@ -75,28 +75,35 @@ let runLevel levelData viewSize hitShotsProcessor =
         // update the invaders list with the invaders that haven't been hit
         let invaders = result.Invaders |> List.choose tryUnhitInvader
 
-        // feed the invaders that have been hit in to the explosion processor
-        result.Invaders 
-        |> List.choose (fun (_, shot) -> shot)
-        |> hitShotsProcessor
+        let newHits = 
+            result.Invaders 
+            |> List.choose (fun (_, shot) -> shot)
 
         let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.PlayerX viewSize.Height invaderUpdateData.Shots
 
-        if playerHit then Point.create (levelData.PlayerX + (PlayerWidth / 2)) (viewSize.Height - (PlayerHeight / 2))::[] |> hitShotsProcessor
+        let newHits = 
+            if playerHit then 
+                Point.create (levelData.PlayerX + (PlayerWidth / 2)) (viewSize.Height - (PlayerHeight / 2))::newHits
+            else
+                newHits
         
         // if we've run out of invaders then the level is complete, otherwise create a new level data for the next frame
-        match invaders.IsEmpty with
-        | true -> Complete
-        | _ -> {levelData with 
-                    InvaderData = {invaderUpdateData.InvaderData with Invaders = InvaderBlock.Invaders invaders};
-                    PlayerX = newPlayerX;
-                    PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item;
-                    InvaderShots = if playerHit then [] else invaderUpdateData.Shots
-                    FrameCount = invaderUpdateData.FrameCount
-                    PlayerHitFrameCount = if playerHit then 120 else 0
-                    } |> if playerHit then PlayerDeath else Continue
+        let result = 
+            match invaders.IsEmpty with
+            | true -> Complete
+            | _ -> {levelData with 
+                        InvaderData = {invaderUpdateData.InvaderData with Invaders = InvaderBlock.Invaders invaders};
+                        PlayerX = newPlayerX;
+                        PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item;
+                        InvaderShots = if playerHit then [] else invaderUpdateData.Shots
+                        FrameCount = invaderUpdateData.FrameCount
+                        PlayerHitFrameCount = if playerHit then 120 else 0
+                        } |> if playerHit then PlayerDeath else Continue
+
+        (newHits, result)
     else
-        {levelData with PlayerHitFrameCount = levelData.PlayerHitFrameCount - 1} |> Continue
+        ([], {levelData with PlayerHitFrameCount = levelData.PlayerHitFrameCount - 1} |> Continue)
+
 
 
 let createLevel() =
@@ -122,24 +129,29 @@ let runWaitScreen waitScreen wait animations inGameState =
         | ScreenWait frame -> 
             (waitScreen, ScreenWait (frame - 1)) |> WaitScreen
 
-let runLevelWrapper gameState viewSize hitShotsProcessor animationFactory =
+let runLevelWrapper gameState viewSize animationFactory =
     let updateLevelState levelState = {gameState with LevelState = levelState }
 
-    match gameState.LevelState with
-    | WaitScreen (waitScreen, wait) -> {gameState with LevelState = runWaitScreen waitScreen wait animationFactory gameState.SubState}
-    | Level levelData -> 
-        match runLevel levelData viewSize hitShotsProcessor with
-        | Continue newLevelData -> newLevelData |> Level |> updateLevelState
-        | PlayerDeath newLevelData -> 
-            match modifyLives gameState.SubState.Lives (-1) with
-            | lives when NumberOfLives.IsDead lives ->
-                let subState = { gameState.SubState with Lives = lives }
-                { gameState with SubState = subState; LevelState = (GameOver, ScreenWait(5*40)) |> WaitScreen }
-            | lives -> 
-                let subState = { gameState.SubState with Lives = lives }
-                {gameState with LevelState = newLevelData |> Level; SubState = subState }
-        | Complete -> (LevelComplete, ScreenWait (2*40)) |> WaitScreen |> updateLevelState
-    |> InGame
+    let newHits, inGameState =
+        match gameState.LevelState with
+        | WaitScreen (waitScreen, wait) -> ([], {gameState with LevelState = runWaitScreen waitScreen wait animationFactory gameState.SubState})
+        | Level levelData -> 
+            let newHits, levelResult = runLevel levelData viewSize
+            (newHits,
+                match levelResult with
+                | Continue newLevelData -> newLevelData |> Level |> updateLevelState
+                | PlayerDeath newLevelData -> 
+                    match modifyLives gameState.SubState.Lives (-1) with
+                    | lives when NumberOfLives.IsDead lives ->
+                        let subState = { gameState.SubState with Lives = lives }
+                        { gameState with SubState = subState; LevelState = (GameOver, ScreenWait(5*40)) |> WaitScreen }
+                    | lives -> 
+                        let subState = { gameState.SubState with Lives = lives }
+                        {gameState with LevelState = newLevelData |> Level; SubState = subState }
+                | Complete -> (LevelComplete, ScreenWait (2*40)) |> WaitScreen |> updateLevelState
+            )
+    
+    (newHits, inGameState |> InGame)
 
 let runStartScreen state viewSize animations =
     match KeyboardIo.IsFire() with
@@ -148,9 +160,9 @@ let runStartScreen state viewSize animations =
         {LevelState = (LevelIntro (animations.Intro subState), ScreenWait (2*40)) |> WaitScreen; SubState = subState} |> InGame
     | false -> state
 
-let run state viewSize hitShotsProcessor animations =
+let run state viewSize animations =
     match state with
-    | StartScreen -> runStartScreen state viewSize animations
-    | InGame {LevelState = WaitScreen (GameOver, ScreenWait 0)} -> StartScreen
-    | InGame gameState -> runLevelWrapper gameState viewSize hitShotsProcessor animations
+    | StartScreen -> ([], runStartScreen state viewSize animations)
+    | InGame {LevelState = WaitScreen (GameOver, ScreenWait 0)} -> ([], StartScreen)
+    | InGame gameState -> runLevelWrapper gameState viewSize animations
 

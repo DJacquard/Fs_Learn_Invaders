@@ -10,7 +10,7 @@ module Sprite =
         xVelocity: int
         yVelocity: int
         visible: bool
-        spriteType: DrawFun
+        drawFunction: DrawFun
         }
 
     type SpriteTransformer = Sprite->Sprite
@@ -62,7 +62,7 @@ let animate animation =
 open Sprite
 
 let createCharacter startPos visible spriteType = {
-        sprite = {location=startPos; xVelocity = 0; yVelocity = 0; visible = visible; spriteType=spriteType }
+        sprite = {location=startPos; xVelocity = 0; yVelocity = 0; visible = visible; drawFunction=spriteType }
         actions = []
         } 
 

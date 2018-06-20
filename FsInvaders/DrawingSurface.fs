@@ -23,21 +23,10 @@ module DrawSurface =
 
     type T = Surface of Graphics * Size
 
-    let infiniteSurface g = (g, Size.Empty) |> Surface
-
     let FillRectangle (g: Graphics) (brush: Brush) (rect: Rectangle) =
         g.FillRectangle(brush, rect)
 
     let inline DrawPointF (Surface (g, _)) (brush: Brush) x y =
         g.FillRectangle(brush, Rectangle(Point(int x, int y), Size(1, 1)))
 
-    let drawRect (g: Graphics) brush rectangle =
-        FillRectangle g brush (RectangleToSys rectangle)
 
-    type DrawingFunctions = {
-        drawRect: Brush->Game.DomainTypes.Rectangle->unit
-        }
-
-    let drawFunctions surface = {
-        drawRect = drawRect surface
-    }
