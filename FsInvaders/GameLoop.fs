@@ -48,7 +48,7 @@ type InGameAnimations = {
 
 
 open GameState
-open InvaderBlock
+open ScreenInvaderBlock
 open Invaders.Invader
 
 let runLevel levelData viewSize =
@@ -75,6 +75,14 @@ let runLevel levelData viewSize =
         // update the invaders list with the invaders that haven't been hit
         let invaders = result.Invaders |> List.choose tryUnhitInvader
 
+        let invaderHits = result.Invaders |> List.filter (function (_, None) -> false | _ -> true) |> List.map (fun (invader, _) -> invader)
+
+        let invadersPointsToRemove = invaderHits |> List.map (ScreenInvaderBlock.screenToBlock invaderUpdateData.InvaderData.Invaders)
+
+        let newInvaderBlock = 
+            invadersPointsToRemove |>
+            List.fold (fun block point -> ScreenInvaderBlock.removeAt block point) invaderUpdateData.InvaderData.Invaders
+
         let newHits = 
             result.Invaders 
             |> List.choose (fun (_, shot) -> shot)
@@ -86,13 +94,15 @@ let runLevel levelData viewSize =
                 Point.create (levelData.PlayerX + (PlayerWidth / 2)) (viewSize.Height - (PlayerHeight / 2))::newHits
             else
                 newHits
+
+         
         
         // if we've run out of invaders then the level is complete, otherwise create a new level data for the next frame
         let result = 
             match invaders.IsEmpty with
             | true -> Complete
             | _ -> {levelData with 
-                        InvaderData = {invaderUpdateData.InvaderData with Invaders = InvaderBlock.Invaders invaders};
+                        InvaderData = {invaderUpdateData.InvaderData with Invaders = newInvaderBlock};
                         PlayerX = newPlayerX;
                         PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item;
                         InvaderShots = if playerHit then [] else invaderUpdateData.Shots
@@ -109,9 +119,9 @@ let runLevel levelData viewSize =
 let createLevel() =
     let area = {Width = GameParameters.InvAreaX; Height = (GameParameters.NumberOfInvaderRows * 3 / 2) * GameParameters.InvaderSize}
 
-    let invaders = InvaderBlock.Create area.Width area.Height GameParameters.NumberOfInvaderColumns GameParameters.NumberOfInvaderRows |> InvaderLogic.create
+    let invaders = ScreenInvaderBlock.Create area.Width area.Height GameParameters.NumberOfInvaderColumns GameParameters.NumberOfInvaderRows |> InvaderLogic.create
 
-    { Level.T.Default with InvaderData = invaders }
+    Level.T.Default invaders
 
 let runWaitScreen waitScreen wait animations inGameState =
     match waitScreen with

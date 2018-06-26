@@ -4,6 +4,7 @@ open Rectangle
 
 open Invaders
 open InvaderLogic
+open InvaderShooting
 
 module Player =
     type T = Player of int
@@ -20,14 +21,10 @@ module Level =
         PlayerHitFrameCount: int
         }
         with
-            static member Default = {InvaderData = InvaderData.Default; PlayerX = 0; PlayerShots = []; InvaderShots = []; Random = System.Random(); FrameCount = 0; PlayerHitFrameCount = 0 }
+            static member Default invaderData = {InvaderData = invaderData; PlayerX = 0; PlayerShots = []; InvaderShots = []; Random = System.Random(); FrameCount = 0; PlayerHitFrameCount = 0 }
 
   
 module Logic =
-    open InvaderBlock
-    open GameParameters
-    open ItemAndBoundingBox
-
 
     let PlayerShotCollisionDetection invaderShots playerRect =
         let shotHit =

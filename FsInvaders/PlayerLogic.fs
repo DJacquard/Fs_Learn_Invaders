@@ -49,6 +49,7 @@ module Collision =
     open Game
     open Invaders
     open GameParameters
+    open InvaderShooting
 
     let playerRect playerX viewHeight =
         Rectangle.create (Point.create playerX (viewHeight - PlayerHeight)) (Size.create PlayerWidth PlayerHeight)

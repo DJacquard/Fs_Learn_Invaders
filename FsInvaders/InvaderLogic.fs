@@ -1,35 +1,25 @@
 ﻿module InvaderLogic
 
 open Invaders
-open InvaderBlock
+open ScreenInvaderBlock
 open GameParameters
 open Game
-
-type HorizontalDirection = Left | Right
-type InvaderDirection = Horizontal of HorizontalDirection | Down of HorizontalDirection
+open InvaderShooting
+open InvaderMoving
 
 type InvaderData = {
-    Invaders: Invaders
+    Invaders: ScreenInvaderBlock
     InitialCount: int
     CurrentDirection: InvaderDirection
     }
-    with 
-        static member Default = { Invaders = Invaders.Default; InitialCount = 0; CurrentDirection = Horizontal Right}
+
 
 let invaderCount data = NumberOfInvaders data.Invaders
 
 let create invaders =
-    {InvaderData.Default with Invaders = invaders; InitialCount = NumberOfInvaders invaders }
+    {Invaders = invaders; InitialCount = NumberOfInvaders invaders; CurrentDirection = InvaderDirection.Horizontal Right }
 
 type InvaderUpdateData = {Random: System.Random; ViewSize: Size; FrameCount: int; InvaderData: InvaderData; Shots: InvaderShots.T list}
-
-// determine the next invader move based on the last move and the current position
-let NextMove {ViewSize = size; InvaderData = invaderData} =
-    match invaderData.CurrentDirection with
-    | Horizontal Left when invaderData.Invaders |> CalculateInvaderArea |> AreaAtLeftEdge -> Down Right
-    | Horizontal Right when invaderData.Invaders |> CalculateInvaderArea |> AreaAtRightEdge size.Width -> Down Left 
-    | Down x -> Horizontal x
-    | unchanged -> unchanged
 
 
 // determine if the invaders will move in this frame and call the move function if so
@@ -46,49 +36,21 @@ let DoIfInvaderFrame moveFunc ({FrameCount = frameCount; InvaderData = invaderDa
         | _ -> (invaderData, frameCount + 1)
 
 
-// moves the invaders
-let moveInvaders ({InvaderData = invaderData} as allData) =
-    let nextMove = NextMove allData
-            
-    let MoveInvader p =
-        match nextMove with 
-        | Horizontal Left -> Point.create(p.X - InvaderMove) p.Y
-        | Horizontal Right -> Point.create(p.X + InvaderMove) p.Y
-        | Down _ -> Point.create p.X (p.Y + (InvaderMove / 2))
+let moveInvaders {ViewSize = viewSize; InvaderData = invaderData} =
+    let nextMove = NextMove viewSize invaderData.CurrentDirection invaderData.Invaders
 
-    let movedInvaders = InvaderBlock.Map (Invader.apply MoveInvader) invaderData.Invaders
-
-    {invaderData with Invaders = movedInvaders ; CurrentDirection = nextMove}
+    {invaderData with 
+                Invaders = MoveInvaders nextMove invaderData.Invaders; 
+                CurrentDirection = nextMove
+    }
 
 
-// choose whether or not to fire a shot and choose which invader it will come from
-let NextInvaderShot {Random = random; InvaderData = invaderData} =
-    let lowerInvaderInEachColumn invaders =
-        let columnToLowest (_, group) =
-            group |> List.maxBy (Invader.Y)
-        let columnGrouped = invaders |> List.groupBy Invader.X
-        columnGrouped |> List.map columnToLowest
-
-    let chooseInvaderToShoot invaders =
-        invaders
-        |> List.item (random.Next(0, List.length invaders))
-
-    let shotStartPosition invader =
-        Game.Point.create (Invader.X invader + InvaderSize / 2) (Invader.Y invader + InvaderSize)
-
-    match random.Next(50) with
-    | 0 -> invaderData.Invaders |> InvaderBlock.Apply (shotStartPosition << chooseInvaderToShoot << lowerInvaderInEachColumn) |> Some
-    | _ -> None
-
-
-let moveShots {Shots = shots; ViewSize = viewSize} =
-    shots|> List.choose (InvaderShots.moveDown 8 >> function s when (InvaderShots.location s).Y > viewSize.Height -> None | s -> Some s)
 
 
 let updateInvaderShots allData = 
-    let moved = moveShots allData
+    let moved = InvaderShooting.MoveInvaderShots allData.Shots allData.ViewSize.Height
 
-    match NextInvaderShot allData with
+    match InvaderShooting.NextInvaderShot allData.Random allData.InvaderData.Invaders with
     | Some p -> InvaderShots.create p::moved
     | None -> moved
 
@@ -98,13 +60,15 @@ module Collision =
     open Invader
     open ItemAndBoundingBox
 
-    type CollisionResult = { Invaders: (Invader * Point Option) list; ShotHits: ItemAndBoundingBox<Point> list; RemainingShots: ItemAndBoundingBox<Point> list}
+    type CollisionResult = { Invaders: (Point * Point Option) list; ShotHits: ItemAndBoundingBox<Point> list; RemainingShots: ItemAndBoundingBox<Point> list}
+
+    let private invaderBoundingBox size point = Rectangle.create point size
 
     let private invaderSize = Size.create InvaderSize InvaderSize
 
     let private playerShotSize = Size.create 2 20
 
-    let private calcInvaderBoundingBox = Invader.boundingBox invaderSize
+    let private calcInvaderBoundingBox = invaderBoundingBox invaderSize
 
     let private calcShotBoundingBox s = Rectangle.create s playerShotSize
 
@@ -135,7 +99,10 @@ module Collision =
 
             let initialState = { Invaders = []; ShotHits = []; RemainingShots = shotBoundingBoxes }
 
-            invaders |> List.fold hitTestAllShots initialState
+            invaders 
+            |> ScreenInvaderBlock.allAliveInPosition 
+            |> List.map (ScreenInvaderBlock.blockToScreen invaders)
+            |> List.fold hitTestAllShots initialState
 
-        Apply testHits invaders
+        testHits invaders
 

@@ -1,72 +1,127 @@
-﻿module Invaders
+﻿namespace Invaders
 
 open Game
 
 module Invader =
-    let create p = Invader p
+    let create() = Invader true
 
     let value (Invader invader) = invader
 
-    let location = value
-
     let apply f (Invader invader) = f invader |> Invader
 
-    let boundingBox size invader = Rectangle.create (invader |> value) size 
-
-    let X i = (value i).X
-
-    let Y i = (value i).Y
-
-    let compareColumn i1 i2 = X i1 - X i2
+    let isAlive = value
 
     
 open GameParameters
 
-module InvaderBlock =
+module InvaderGrid =
+    type InvaderGrid = {
+            columnCount: int
+            rowCount: int
+            invaders: Invader list
+    }
 
-    type Invaders = Invaders of Invader list
-        with static member Default = Invaders []
+    let NumberOfInvaders block =
+        block.invaders 
+        |> List.filter Invader.isAlive
+        |> List.length
 
-    let Apply f (Invaders invaders) =
-        f invaders
+    let columnsContainingLiveInvaders rowCount invaders =
+        invaders
+        |> List.mapi (fun i inv -> (i % rowCount, inv))
+        |> List.filter (fun (_, inv) -> inv |> Invader.isAlive)
+        |> List.map (fun (i, _) -> i)
 
-    let IsEmpty =
-        Apply <| List.isEmpty
+    let rowsContainingLiveInvaders columnCount invaders =
+        invaders
+        |> List.mapi (fun i inv -> (i / columnCount, inv))
+        |> List.filter (fun (_, inv) -> inv |> Invader.isAlive)
+        |> List.map (fun (i, _) -> i)
 
-    let NumberOfInvaders =
-        Apply <| List.length
+    let LeftmostColumn block =
+        block.invaders 
+        |> columnsContainingLiveInvaders block.rowCount
+        |> List.min
 
-    let FindEdge edgeFunc start =
-        Apply <| List.fold (fun state -> edgeFunc state << Invader.X) start
+    let RightmostColumn block =
+        block.invaders 
+        |> columnsContainingLiveInvaders block.rowCount
+        |> List.max
 
-    let LeftEdge = FindEdge min System.Int32.MaxValue
+    let BottomRow block =
+        block.invaders 
+        |> rowsContainingLiveInvaders block.columnCount
+        |> List.max
 
-    let RightEdge invaders = InvaderSize + FindEdge max System.Int32.MinValue invaders
+    let TopRow block =
+        block.invaders
+        |> rowsContainingLiveInvaders block.columnCount
+        |> List.min
 
-    let BottomEdge =
-        Apply <| List.fold (fun state -> max state << Invader.Y) System.Int32.MinValue 
+    let allAliveInPosition block =
+        block.invaders 
+        |> List.mapi (fun i inv -> (i, inv |> Invader.isAlive))
+        |> List.filter (fun (_, isAlive) -> isAlive)
+        |> List.map (fun (index, _) -> Point.create (index % block.columnCount) (index / block.columnCount))
 
-    let TopEdge =
-        Apply <| List.fold (fun state -> min state << Invader.Y) System.Int32.MaxValue 
+    let removeAt block {X = x; Y = y} =
+        let index = y * block.columnCount + x
 
-    let CreateEmpty() = Invaders []
+        {
+            block with invaders =
+                        block.invaders
+                        |> List.mapi (fun i inv -> if i = index then false |> Invader else inv)
+        }
 
-    let createPointAtY y x = Point.create x y |> Invader.create
+    let create columns rows =
+        { 
+            columnCount = columns;
+            rowCount = rows;
+            invaders = List.init (rows * columns) (fun _ -> Invader.create())
+        }
+
+
+module ScreenInvaderBlock =
+
+    open InvaderGrid
+
+    type ScreenInvaderBlock = {
+            position: Point
+            pixelSize: Size
+            invaderBlock: InvaderGrid
+         }    
+         with member this.gridSize = Size.create this.invaderBlock.columnCount (this.invaderBlock.rowCount)
+
+    let ColumnWidth block =
+        block.pixelSize.Width / block.invaderBlock.columnCount
+
+    let RowHeight block =
+        block.pixelSize.Height / block.invaderBlock.rowCount
+
+    let LeftEdge block = 
+        LeftmostColumn block.invaderBlock * ColumnWidth block + block.position.X
+
+    let RightEdge block = 
+        (RightmostColumn block.invaderBlock  + 1) * ColumnWidth block + block.position.X
+
+    let BottomEdge block =
+        (BottomRow block.invaderBlock + 1) * RowHeight block + block.position.Y
+
+    let TopEdge block =
+        TopRow block.invaderBlock * RowHeight block + block.position.Y
 
     let Create width height columns rows =
-        let xStep = (*) (width / columns)
-        let yStep = (*) (height / rows)
+        { 
+            position = Point.create 0 0;
+            pixelSize = Size.create width height;
+            invaderBlock = InvaderGrid.create columns rows
+        }
 
-        let placeRow y =
-            {0..columns-1} |> Seq.map (xStep >> createPointAtY y) 
+    let blockToScreen block {X = x; Y = y} =
+        Point.create (x * ColumnWidth block + block.position.X) (y * RowHeight block + block.position.Y)
 
-        {0..rows-1} |> Seq.collect (yStep >> placeRow) |> Seq.toList
-            |> Invaders
-
-    let Iterate func =
-        Apply <| List.iter func
-
-    let Map func = (Apply <| List.map func) >> Invaders
+    let screenToBlock block {X = x; Y = y} =
+        Point.create ((x - block.position.X) / ColumnWidth block) ((y - block.position.Y) / RowHeight block)
 
     let CalculateInvaderArea invaders =
         let x = LeftEdge invaders
@@ -79,19 +134,12 @@ module InvaderBlock =
 
     let AreaAtRightEdge totalWidth area = (area |> Rectangle.rightEdge) >= totalWidth
 
+    let NumberOfInvaders block = NumberOfInvaders block.invaderBlock
+
+    let allAliveInPosition block = allAliveInPosition block.invaderBlock
+
+    let removeAt block point = 
+        {block with invaderBlock = removeAt block.invaderBlock point} 
 
 
-module InvaderShots =
-    [<Struct>]
-    type T = InvaderShot of Rectangle
-
-    let create p = Rectangle.create p <| Size.create 2 20 |> InvaderShot
-
-    let apply f (InvaderShot shot) = f shot
-
-    let map f = InvaderShot << (apply <| f)
-
-    let location = apply Rectangle.location
-
-    let moveDown spd = map (Rectangle.moveY spd)
 

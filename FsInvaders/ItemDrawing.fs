@@ -3,17 +3,21 @@
 open System.Drawing
 open Drawing.DrawSurface
 open Drawing
+open Game
 
 module DrawInvaders =
     open Invaders
+    open InvaderShooting
+    
 
     let Draw surface point =
         FillRectangle surface Brushes.LightGreen (SysRectangle(PointToSys point, Size(GameParameters.InvaderSize, GameParameters.InvaderSize)))
 
     let DrawInvaders surface invaders =
-        let Draw p = Draw surface p
+        let Draw p = 
+            Draw surface (Invaders.ScreenInvaderBlock.blockToScreen invaders p)
 
-        invaders |> InvaderBlock.Iterate (Draw << Invader.location)
+        invaders |> ScreenInvaderBlock.allAliveInPosition |> List.iter Draw
 
     let DrawShot surface shot =
         shot |> InvaderShots.apply (fun r -> FillRectangle surface Brushes.Yellow (RectangleToSys r))

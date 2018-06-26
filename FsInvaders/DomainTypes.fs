@@ -14,4 +14,4 @@ module DomainTypes =
     type Rectangle = Rectangle of Point * Size
 
     [<Struct>]
-    type Invader = Invader of Point
+    type Invader = Invader of bool

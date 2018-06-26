@@ -33,7 +33,9 @@ module Character =
     let moveSprite sprite = {sprite with location={X=sprite.location.X + sprite.xVelocity; Y = sprite.location.Y + sprite.yVelocity}}
 
     let applyFrame frame ({sprite = sprite; actions = actions} as character) =
-        let actionsToApply = actions |> List.where (fun {frame = kf} -> kf = frame) |> List.map (fun {action = action} -> action)
+        let actionsToApply = actions 
+                             |> List.where (fun {frame = kf} -> kf = frame) 
+                             |> List.map (fun {action = action} -> action)
         let transformedSprite = actionsToApply |> List.fold applyAction sprite |> moveSprite
         {character with sprite=transformedSprite}
 

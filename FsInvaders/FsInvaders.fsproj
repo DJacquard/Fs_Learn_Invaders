@@ -60,6 +60,8 @@
     <Compile Include="Geometry.fs" />
     <Compile Include="Animation.fs" />
     <Compile Include="Invaders.fs" />
+    <Compile Include="InvaderShooting.fs" />
+    <Compile Include="InvaderMoving.fs" />
     <Compile Include="InvaderLogic.fs" />
     <Compile Include="KeyboardIo.fs" />
     <Compile Include="PlayerLogic.fs" />
