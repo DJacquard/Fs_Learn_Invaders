@@ -54,38 +54,35 @@ open Invaders.Invader
 let runLevel levelData viewSize =
 
     if levelData.PlayerHitFrameCount = 0 then
+        let moveIfInvaderFrame invaderUpdateData =
+            let (invaderData, frameCount) = moveIfInvaderFrame invaderUpdateData
+            {invaderUpdateData with InvaderData = invaderData; FrameCount = frameCount}
+
+        let updateInvaderShots invaderUpdateData =
+            {invaderUpdateData with Shots = updateInvaderShots invaderUpdateData }
+
         let invaderUpdateData = {Shots = levelData.InvaderShots; Random = levelData.Random; ViewSize = viewSize; FrameCount = levelData.FrameCount; InvaderData = levelData.InvaderData;  }
+                                |> moveIfInvaderFrame
+                                |> updateInvaderShots
 
-        let (invaderData, frameCount) = DoIfInvaderFrame moveInvaders invaderUpdateData
-
-        let invaderUpdateData = {invaderUpdateData with InvaderData = invaderData; FrameCount = frameCount}
-
-        let invaderUpdateData = {invaderUpdateData with Shots = updateInvaderShots invaderUpdateData }
-                
         let newPlayerX = PlayerLogic.Movement.movePlayer levelData.PlayerX viewSize.Width
 
         let playerShots = levelData.PlayerShots |> PlayerLogic.Shooting.updateShots newPlayerX viewSize.Height
 
         let result = InvaderLogic.Collision.InvaderShotCollisionDetection playerShots invaderUpdateData.InvaderData.Invaders
 
-        let tryUnhitInvader = function
-                                | (invader, None) -> Some invader
-                                | _ -> None
+        let (invaderHits, shotHits) = result.Invaders 
+                                        |> List.filter (function (_, None) -> false | _ -> true) 
+                                        |> List.map (fun (invader, shot) -> (invader, shot))
+                                        |> List.unzip
 
-        // update the invaders list with the invaders that haven't been hit
-        let invaders = result.Invaders |> List.choose tryUnhitInvader
-
-        let invaderHits = result.Invaders |> List.filter (function (_, None) -> false | _ -> true) |> List.map (fun (invader, _) -> invader)
-
-        let invadersPointsToRemove = invaderHits |> List.map (ScreenInvaderBlock.screenToBlock invaderUpdateData.InvaderData.Invaders)
+        let invadersPointsToRemove = invaderHits //|> List.map (ScreenInvaderBlock.screenToBlock invaderUpdateData.InvaderData.Invaders)
 
         let newInvaderBlock = 
             invadersPointsToRemove |>
             List.fold (fun block point -> ScreenInvaderBlock.removeAt block point) invaderUpdateData.InvaderData.Invaders
 
-        let newHits = 
-            result.Invaders 
-            |> List.choose (fun (_, shot) -> shot)
+        let newHits = shotHits |> List.choose id
 
         let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.PlayerX viewSize.Height invaderUpdateData.Shots
 
@@ -99,7 +96,7 @@ let runLevel levelData viewSize =
         
         // if we've run out of invaders then the level is complete, otherwise create a new level data for the next frame
         let result = 
-            match invaders.IsEmpty with
+            match ScreenInvaderBlock.isEmpty newInvaderBlock with
             | true -> Complete
             | _ -> {levelData with 
                         InvaderData = {invaderUpdateData.InvaderData with Invaders = newInvaderBlock};

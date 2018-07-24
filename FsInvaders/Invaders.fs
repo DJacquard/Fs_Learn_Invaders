@@ -3,6 +3,8 @@
 open Game
 
 module Invader =
+    let fromValue value = Invader value
+
     let create() = Invader true
 
     let value (Invader invader) = invader
@@ -11,6 +13,7 @@ module Invader =
 
     let isAlive = value
 
+type Invader = Invader<bool>
     
 open GameParameters
 
@@ -26,9 +29,9 @@ module InvaderGrid =
         |> List.filter Invader.isAlive
         |> List.length
 
-    let columnsContainingLiveInvaders rowCount invaders =
+    let columnsContainingLiveInvaders columnCount invaders =
         invaders
-        |> List.mapi (fun i inv -> (i % rowCount, inv))
+        |> List.mapi (fun i inv -> (i % columnCount, inv))
         |> List.filter (fun (_, inv) -> inv |> Invader.isAlive)
         |> List.map (fun (i, _) -> i)
 
@@ -40,12 +43,12 @@ module InvaderGrid =
 
     let LeftmostColumn block =
         block.invaders 
-        |> columnsContainingLiveInvaders block.rowCount
+        |> columnsContainingLiveInvaders block.columnCount
         |> List.min
 
     let RightmostColumn block =
         block.invaders 
-        |> columnsContainingLiveInvaders block.rowCount
+        |> columnsContainingLiveInvaders block.columnCount
         |> List.max
 
     let BottomRow block =
@@ -70,7 +73,7 @@ module InvaderGrid =
         {
             block with invaders =
                         block.invaders
-                        |> List.mapi (fun i inv -> if i = index then false |> Invader else inv)
+                        |> List.mapi (fun i inv -> if i = index then false |> Invader.fromValue else inv)
         }
 
     let create columns rows =
@@ -140,6 +143,9 @@ module ScreenInvaderBlock =
 
     let removeAt block point = 
         {block with invaderBlock = removeAt block.invaderBlock point} 
+
+    let isEmpty block =
+        block |> NumberOfInvaders <= 0
 
 
 

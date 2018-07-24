@@ -45,18 +45,3 @@ module Rectangle =
     let moveY deltaY = map (fun (p, s) -> (p |> Point.moveY deltaY, s))
 
 
-module Geometry =
-    let centreX width x = x + width / 2
-
-    let centreY height y = y + height / 2
-
-    let centre {Width = w; Height = h} {X = x; Y = y} = Point.create (x + w / 2) (y + h / 2)
-
-
-module ItemAndBoundingBox =
-    type ItemAndBoundingBox<'T> = {Item: 'T; BoundingBox: Rectangle}
-
-    let create f item = {Item = item; BoundingBox = f(item) }
-
-    let item t = t.Item
-

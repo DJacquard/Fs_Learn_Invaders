@@ -22,8 +22,16 @@ let create invaders =
 type InvaderUpdateData = {Random: System.Random; ViewSize: Size; FrameCount: int; InvaderData: InvaderData; Shots: InvaderShots.T list}
 
 
+let moveInvaders {ViewSize = viewSize; InvaderData = invaderData} =
+    let nextMove = NextMove viewSize invaderData.CurrentDirection invaderData.Invaders
+
+    {invaderData with 
+                Invaders = MoveInvaders nextMove invaderData.Invaders; 
+                CurrentDirection = nextMove
+    }
+
 // determine if the invaders will move in this frame and call the move function if so
-let DoIfInvaderFrame moveFunc ({FrameCount = frameCount; InvaderData = invaderData} as allData) =
+let moveIfInvaderFrame ({FrameCount = frameCount; InvaderData = invaderData} as allData) =
     let currentCount = invaderData |> invaderCount
     let speed = match currentCount with
                 | c when c <= 1 -> MaxSpeed
@@ -32,17 +40,10 @@ let DoIfInvaderFrame moveFunc ({FrameCount = frameCount; InvaderData = invaderDa
     let framesPerMove = speed / FrameInterval
 
     match (frameCount + 1) % framesPerMove with
-        | 0 -> (moveFunc allData, 0)
+        | 0 -> (moveInvaders allData, 0)
         | _ -> (invaderData, frameCount + 1)
 
 
-let moveInvaders {ViewSize = viewSize; InvaderData = invaderData} =
-    let nextMove = NextMove viewSize invaderData.CurrentDirection invaderData.Invaders
-
-    {invaderData with 
-                Invaders = MoveInvaders nextMove invaderData.Invaders; 
-                CurrentDirection = nextMove
-    }
 
 
 
@@ -77,13 +78,13 @@ module Collision =
 
     let InvaderShotCollisionDetection playerShots invaders =
 
-        let hitTestAllShots state invader =
+        let hitTestAllShots state (invader, blockPoint) =
             let shotHit shot remainingShots state = 
-                {state with Invaders = (invader, ItemAndBoundingBox.item shot |> Some) :: state.Invaders; 
+                {state with Invaders = (blockPoint, ItemAndBoundingBox.item shot |> Some) :: state.Invaders; 
                             ShotHits = shot::state.ShotHits; 
                             RemainingShots = remainingShots }
 
-            let shotMiss _ state = {state with Invaders = (invader, None) :: state.Invaders } : CollisionResult
+            let shotMiss _ state = {state with Invaders = (blockPoint, None) :: state.Invaders } : CollisionResult
 
             let findFirstHit (shotHasAlreadyHit, remainingShots, continuation) shot =
                 match shotHasAlreadyHit with
@@ -101,7 +102,7 @@ module Collision =
 
             invaders 
             |> ScreenInvaderBlock.allAliveInPosition 
-            |> List.map (ScreenInvaderBlock.blockToScreen invaders)
+            |> List.map (fun point -> ((ScreenInvaderBlock.blockToScreen invaders point), point))
             |> List.fold hitTestAllShots initialState
 
         testHits invaders

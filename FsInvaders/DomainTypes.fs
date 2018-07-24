@@ -14,4 +14,13 @@ module DomainTypes =
     type Rectangle = Rectangle of Point * Size
 
     [<Struct>]
-    type Invader = Invader of bool
+    type Invader<'T> = Invader of 'T
+
+    type ItemAndBoundingBox<'T> = {Item: 'T; BoundingBox: Rectangle}
+
+module ItemAndBoundingBox =
+    let create f item = {Item = item; BoundingBox = f(item) }
+
+    let item t = t.Item
+
+
