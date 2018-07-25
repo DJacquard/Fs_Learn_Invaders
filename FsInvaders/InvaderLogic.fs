@@ -1,11 +1,18 @@
 ﻿module InvaderLogic
 
 open Invaders
+open InvaderGrid
 open ScreenInvaderBlock
 open GameParameters
-open Game
-open InvaderShooting
 open InvaderMoving
+
+type ItemAndBoundingBox<'T> = {Item: 'T; BoundingBox: Rectangle}
+
+module ItemAndBoundingBox =
+    let create f item = {Item = item; BoundingBox = f(item) }
+
+    let item t = t.Item
+
 
 type InvaderData = {
     Invaders: ScreenInvaderBlock
@@ -14,50 +21,13 @@ type InvaderData = {
     }
 
 
-let invaderCount data = NumberOfInvaders data.Invaders
+let invaderCount invaders = numberOfLiveInvaders invaders.InvaderBlock
 
 let create invaders =
-    {Invaders = invaders; InitialCount = NumberOfInvaders invaders; CurrentDirection = InvaderDirection.Horizontal Right }
-
-type InvaderUpdateData = {Random: System.Random; ViewSize: Size; FrameCount: int; InvaderData: InvaderData; Shots: InvaderShots.T list}
-
-
-let moveInvaders {ViewSize = viewSize; InvaderData = invaderData} =
-    let nextMove = NextMove viewSize invaderData.CurrentDirection invaderData.Invaders
-
-    {invaderData with 
-                Invaders = MoveInvaders nextMove invaderData.Invaders; 
-                CurrentDirection = nextMove
-    }
-
-// determine if the invaders will move in this frame and call the move function if so
-let moveIfInvaderFrame ({FrameCount = frameCount; InvaderData = invaderData} as allData) =
-    let currentCount = invaderData |> invaderCount
-    let speed = match currentCount with
-                | c when c <= 1 -> MaxSpeed
-                | _ -> (StartSpeed - MaxSpeed) * (currentCount-1) / (invaderData.InitialCount-1) + MaxSpeed
-
-    let framesPerMove = speed / FrameInterval
-
-    match (frameCount + 1) % framesPerMove with
-        | 0 -> (moveInvaders allData, 0)
-        | _ -> (invaderData, frameCount + 1)
-
-
-
-
-
-
-let updateInvaderShots allData = 
-    let moved = InvaderShooting.MoveInvaderShots allData.Shots allData.ViewSize.Height
-
-    match InvaderShooting.NextInvaderShot allData.Random allData.InvaderData.Invaders with
-    | Some p -> InvaderShots.create p::moved
-    | None -> moved
+    {Invaders = invaders; InitialCount = invaderCount invaders; CurrentDirection = InvaderDirection.Horizontal Right }
 
 
 module Collision =
-    open Game
     open Invader
     open ItemAndBoundingBox
 
@@ -100,8 +70,8 @@ module Collision =
 
             let initialState = { Invaders = []; ShotHits = []; RemainingShots = shotBoundingBoxes }
 
-            invaders 
-            |> ScreenInvaderBlock.allAliveInPosition 
+            invaders.InvaderBlock 
+            |> InvaderGrid.allAliveInPosition
             |> List.map (fun point -> ((ScreenInvaderBlock.blockToScreen invaders point), point))
             |> List.fold hitTestAllShots initialState
 

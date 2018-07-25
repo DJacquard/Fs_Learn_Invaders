@@ -55,11 +55,12 @@
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
     <Compile Include="AssemblyInfo.fs" />
-    <Compile Include="GameParameters.fs" />
-    <Compile Include="DomainTypes.fs" />
     <Compile Include="Geometry.fs" />
     <Compile Include="Animation.fs" />
-    <Compile Include="Invaders.fs" />
+    <Compile Include="GameParameters.fs" />
+    <Compile Include="Invader.fs" />
+    <Compile Include="InvaderGrid.fs" />
+    <Compile Include="ScreenInvaderBlock.fs" />
     <Compile Include="InvaderShooting.fs" />
     <Compile Include="InvaderMoving.fs" />
     <Compile Include="InvaderLogic.fs" />
@@ -73,7 +74,6 @@
     <Compile Include="ItemDrawing.fs" />
     <Compile Include="Animations.fs" />
     <Compile Include="StarField.fs" />
-    <Compile Include="AnimationDrawing.fs" />
     <Compile Include="GameScreen.fs" />
     <Compile Include="NativeMethods.fs" />
     <Compile Include="Stopwatch.fs" />

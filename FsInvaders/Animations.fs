@@ -4,7 +4,6 @@ open Animation
 
 open GameLoop.GameState
 
-open Game
 open Drawing
 open System.Drawing
 

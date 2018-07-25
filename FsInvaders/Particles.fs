@@ -9,7 +9,7 @@ module Particle =
     [<Struct>]
     type Particle = {X: single; Y: single; SpeedX: single; SpeedY: single }
 
-    let update particle = { particle with X = particle.X + particle.SpeedX; Y = particle.Y + particle.SpeedY }
+    let update particle = { particle with X = particle.X + particle.SpeedX; Y = particle.Y + particle.SpeedY } : Particle
 
 module ParticleCloud =
     open Particle

@@ -1,4 +1,15 @@
-﻿namespace Game
+﻿[<AutoOpen>]
+module Geometry
+
+[<Struct>]
+type Point = {X: int; Y: int}
+
+[<Struct>]
+type Size = {Width: int; Height: int}
+
+[<Struct>]
+type Rectangle = Rectangle of Point * Size
+
 
 module Point =
     let create x y = {X = x; Y = y}

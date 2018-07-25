@@ -21,7 +21,6 @@ module Movement =
             | _ -> 0
 
 module Shooting =
-    open Game
 
     let CheckFire x =
         match KeyboardIo.IsFire() with 
@@ -46,10 +45,8 @@ module Shooting =
     let updateShots playerX viewHeight = updateShotPositions >> prefixPlayerShot playerX viewHeight
 
 module Collision =
-    open Game
     open Invaders
     open GameParameters
-    open InvaderShooting
 
     let playerRect playerX viewHeight =
         Rectangle.create (Point.create playerX (viewHeight - PlayerHeight)) (Size.create PlayerWidth PlayerHeight)
@@ -57,6 +54,6 @@ module Collision =
     let checkPlayerHit playerX viewHeight invaderShots =
         let playerRect = playerRect playerX viewHeight
         let testShotHit =
-            InvaderShots.apply (Rectangle.intersect playerRect)
+            InvaderShot.apply (Rectangle.intersect playerRect)
 
         invaderShots |> List.exists testShotHit

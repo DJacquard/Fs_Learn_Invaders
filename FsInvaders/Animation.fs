@@ -1,8 +1,6 @@
 ﻿module Animation
 
-module Sprite =
-    open Game
-
+module Core =
     type DrawFun = Point -> unit
 
     type Sprite = {
@@ -15,9 +13,6 @@ module Sprite =
 
     type SpriteTransformer = Sprite->Sprite
 
-module Character =
-    open Sprite
-
     type KeyFrame = {
         frame: int
         action: SpriteTransformer
@@ -28,18 +23,19 @@ module Character =
         actions: KeyFrame list
         }
 
-    let applyAction sprite action = action sprite
+    module Character =
+        let applyAction sprite action = action sprite
 
-    let moveSprite sprite = {sprite with location={X=sprite.location.X + sprite.xVelocity; Y = sprite.location.Y + sprite.yVelocity}}
+        let moveSprite sprite = {sprite with location={X=sprite.location.X + sprite.xVelocity; Y = sprite.location.Y + sprite.yVelocity}}
 
-    let applyFrame frame ({sprite = sprite; actions = actions} as character) =
-        let actionsToApply = actions 
-                             |> List.where (fun {frame = kf} -> kf = frame) 
-                             |> List.map (fun {action = action} -> action)
-        let transformedSprite = actionsToApply |> List.fold applyAction sprite |> moveSprite
-        {character with sprite=transformedSprite}
+        let applyFrame frame ({sprite = sprite; actions = actions} as character) =
+            let actionsToApply = actions 
+                                 |> List.where (fun {frame = kf} -> kf = frame) 
+                                 |> List.map (fun {action = action} -> action)
+            let transformedSprite = actionsToApply |> List.fold applyAction sprite |> moveSprite
+            {character with sprite=transformedSprite}
 
-open Character
+open Core
 
 type Animation = {
     characters: Character list
@@ -53,7 +49,7 @@ let incrementFrame animation =
     {animation with currentFrame = animation.currentFrame + 1}
 
 let processFrame ({characters = characters; currentFrame = currentFrame} as animation) =
-    {animation with characters = characters |> List.map (applyFrame currentFrame)}
+    {animation with characters = characters |> List.map (Character.applyFrame currentFrame)}
 
 let animate animation =
     match animation |> processFrame |> incrementFrame with
@@ -61,7 +57,6 @@ let animate animation =
     | _ -> None
 
     
-open Sprite
 
 let createCharacter startPos visible spriteType = {
         sprite = {location=startPos; xVelocity = 0; yVelocity = 0; visible = visible; drawFunction=spriteType }
@@ -80,7 +75,12 @@ let transformXVelocity xvel s = {s with xVelocity = xvel}
 
 let transformYVelocity yvel s = {s with yVelocity = yvel }
 
-
+let draw animation =
+    let sprites = animation.characters |> List.map (fun c -> c.sprite)
+    sprites |> List.iter (fun s -> 
+                match s.visible with
+                | true -> s.drawFunction s.location
+                | _ -> ())
 
 
 

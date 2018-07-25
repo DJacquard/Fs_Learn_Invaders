@@ -7,7 +7,6 @@ open Game
 
 module DrawInvaders =
     open Invaders
-    open InvaderShooting
     
 
     let Draw surface point =
@@ -17,10 +16,10 @@ module DrawInvaders =
         let Draw p = 
             Draw surface (Invaders.ScreenInvaderBlock.blockToScreen invaders p)
 
-        invaders |> ScreenInvaderBlock.allAliveInPosition |> List.iter Draw
+        invaders.InvaderBlock |> InvaderGrid.allAliveInPosition |> List.iter Draw
 
     let DrawShot surface shot =
-        shot |> InvaderShots.apply (fun r -> FillRectangle surface Brushes.Yellow (RectangleToSys r))
+        shot |> InvaderShot.apply (fun r -> FillRectangle surface Brushes.Yellow (RectangleToSys r))
     
 
 module DrawPlayer =

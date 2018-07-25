@@ -1,7 +1,6 @@
 ﻿module GameLoop
 
 open Game
-open Game.Level
 open InvaderLogic
 open GameParameters
 open Invaders
@@ -29,7 +28,7 @@ module GameState =
     
     type WaitScreen = LevelIntro of Animation | LevelComplete | GameOver
 
-    type LevelState = WaitScreen of WaitScreen * ScreenWait | Level of Level.T
+    type LevelState = WaitScreen of WaitScreen * ScreenWait | Level of LevelData
 
     type SubInGameState = {Level: LevelNumber; Lives: NumberOfLives;  }
 
@@ -38,7 +37,7 @@ module GameState =
     type State = StartScreen | InGame of InGameState
         with static member Default = StartScreen
 
-    type LevelResult = Continue of Level.T | PlayerDeath of Level.T | Complete
+    type LevelResult = Continue of LevelData | PlayerDeath of LevelData | Complete
 
 type AnimationFactory = GameState.SubInGameState->Animation
 
@@ -48,43 +47,35 @@ type InGameAnimations = {
 
 
 open GameState
-open ScreenInvaderBlock
-open Invaders.Invader
+open Level
 
 let runLevel levelData viewSize =
 
     if levelData.PlayerHitFrameCount = 0 then
-        let moveIfInvaderFrame invaderUpdateData =
-            let (invaderData, frameCount) = moveIfInvaderFrame invaderUpdateData
-            {invaderUpdateData with InvaderData = invaderData; FrameCount = frameCount}
+        
+        let levelData = 
+            levelData
+            |> MoveInvaders viewSize
+            |> UpdateInvaderShots viewSize
+            |> MovePlayer viewSize
+            |> UpdatePlayerShots viewSize
 
-        let updateInvaderShots invaderUpdateData =
-            {invaderUpdateData with Shots = updateInvaderShots invaderUpdateData }
-
-        let invaderUpdateData = {Shots = levelData.InvaderShots; Random = levelData.Random; ViewSize = viewSize; FrameCount = levelData.FrameCount; InvaderData = levelData.InvaderData;  }
-                                |> moveIfInvaderFrame
-                                |> updateInvaderShots
-
-        let newPlayerX = PlayerLogic.Movement.movePlayer levelData.PlayerX viewSize.Width
-
-        let playerShots = levelData.PlayerShots |> PlayerLogic.Shooting.updateShots newPlayerX viewSize.Height
-
-        let result = InvaderLogic.Collision.InvaderShotCollisionDetection playerShots invaderUpdateData.InvaderData.Invaders
+        let result = InvaderLogic.Collision.InvaderShotCollisionDetection levelData.PlayerShots levelData.InvaderData.Invaders
 
         let (invaderHits, shotHits) = result.Invaders 
                                         |> List.filter (function (_, None) -> false | _ -> true) 
                                         |> List.map (fun (invader, shot) -> (invader, shot))
                                         |> List.unzip
 
-        let invadersPointsToRemove = invaderHits //|> List.map (ScreenInvaderBlock.screenToBlock invaderUpdateData.InvaderData.Invaders)
+        let newInvaderBlock() = 
+            invaderHits |>
+            List.fold (fun block point -> ScreenInvaderBlock.removeAt block point) levelData.InvaderData.Invaders
 
-        let newInvaderBlock = 
-            invadersPointsToRemove |>
-            List.fold (fun block point -> ScreenInvaderBlock.removeAt block point) invaderUpdateData.InvaderData.Invaders
+        let levelData = {levelData with InvaderData = { levelData.InvaderData with Invaders = newInvaderBlock() } }
 
         let newHits = shotHits |> List.choose id
 
-        let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.PlayerX viewSize.Height invaderUpdateData.Shots
+        let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.PlayerX viewSize.Height levelData.InvaderShots
 
         let newHits = 
             if playerHit then 
@@ -96,14 +87,12 @@ let runLevel levelData viewSize =
         
         // if we've run out of invaders then the level is complete, otherwise create a new level data for the next frame
         let result = 
-            match ScreenInvaderBlock.isEmpty newInvaderBlock with
+            match InvaderGrid.isEmpty levelData.InvaderData.Invaders.InvaderBlock with
             | true -> Complete
             | _ -> {levelData with 
-                        InvaderData = {invaderUpdateData.InvaderData with Invaders = newInvaderBlock};
-                        PlayerX = newPlayerX;
-                        PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item;
-                        InvaderShots = if playerHit then [] else invaderUpdateData.Shots
-                        FrameCount = invaderUpdateData.FrameCount
+                        PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item
+                        InvaderShots = if playerHit then [] else levelData.InvaderShots
+                        FrameCount = levelData.FrameCount + 1
                         PlayerHitFrameCount = if playerHit then 120 else 0
                         } |> if playerHit then PlayerDeath else Continue
 
@@ -116,9 +105,9 @@ let runLevel levelData viewSize =
 let createLevel() =
     let area = {Width = GameParameters.InvAreaX; Height = (GameParameters.NumberOfInvaderRows * 3 / 2) * GameParameters.InvaderSize}
 
-    let invaders = ScreenInvaderBlock.Create area.Width area.Height GameParameters.NumberOfInvaderColumns GameParameters.NumberOfInvaderRows |> InvaderLogic.create
+    let invaders = ScreenInvaderBlock.create area.Width area.Height GameParameters.NumberOfInvaderColumns GameParameters.NumberOfInvaderRows |> InvaderLogic.create
 
-    Level.T.Default invaders
+    LevelData.Default invaders
 
 let runWaitScreen waitScreen wait animations inGameState =
     match waitScreen with

@@ -2,7 +2,6 @@
 
 open GameLoop
 open Particles
-open Game
 open ItemDrawing
 open System.Drawing
 open GameLoop.GameState
@@ -66,13 +65,10 @@ let draw surface size (clientRectangle: System.Drawing.Rectangle) (graphics: Gra
         sf.Alignment <- StringAlignment.Center
         graphics.DrawString(s, font, brush, toRectangleF clientRectangle, sf)
 
-    let drawAnimation animation =
-        AnimationDrawing.draw animation
-
     let drawWaitScreen screenType =
         match screenType with
         | LevelIntro animation -> //drawStringCentre Brushes.Orange (sprintf "Get ready\r\nLevel: %d\r\nRemaining lives: %d" (valueLevelNumber gameState.Level) (valueLives gameState.Lives))
-            drawAnimation animation graphics
+            Animation.draw animation
         | LevelComplete -> drawStringCentre Brushes.Yellow "Level complete"
         | GameOver -> drawStringCentre Brushes.Red "Game Over"
 
