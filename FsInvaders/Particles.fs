@@ -1,10 +1,5 @@
 ﻿module Particles
 
-module Random =
-    let random = System.Random()
-
-    let next min max = random.NextDouble() * (max - min) + min |> single
-
 module Particle =
     [<Struct>]
     type Particle = {X: single; Y: single; SpeedX: single; SpeedY: single }
@@ -29,9 +24,10 @@ module Explosion =
     open ParticleCloud
     open Particle
 
-    let inline create count x y maxSpeed =
-        let r() = Random.next -10.0 10.0
-        let f() = {X = (single x + r()); Y = (single y + r()); SpeedX = Random.next -maxSpeed maxSpeed; SpeedY = Random.next -maxSpeed maxSpeed}
+    let inline create count x y maxSpeed random =
+        let nextRandomF = Random.nextInRangeF random
+        let r() = nextRandomF -10.0 10.0
+        let f() = {X = (single x + r()); Y = (single y + r()); SpeedX = nextRandomF -maxSpeed maxSpeed; SpeedY = nextRandomF -maxSpeed maxSpeed}
         ParticleCloud [for _ in 1..count -> f() ]
 
     let top exp =

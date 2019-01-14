@@ -24,7 +24,7 @@ type InvaderData = {
 let invaderCount invaders = numberOfLiveInvaders invaders.InvaderBlock
 
 let create invaders =
-    {Invaders = invaders; InitialCount = invaderCount invaders; CurrentDirection = InvaderDirection.Horizontal Right }
+    {Invaders = invaders; InitialCount = invaderCount invaders; CurrentDirection = Horizontal Movement.HorizontalDirection.Right }
 
 
 module Collision =

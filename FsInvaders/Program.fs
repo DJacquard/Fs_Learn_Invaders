@@ -3,6 +3,7 @@ open System.Drawing
 open ScreenControl
 open System
 open Form1
+open WinFormsTypes
 // Learn more about F# at http://fsharp.org
 // See the 'F# Tutorial' project for more help.
 
@@ -15,7 +16,20 @@ let main argv =
 
     Form.Text <- "Fs Invaders"
 
-    use ScreenControl = new ScreenControl()
+    Form.KeyPreview <- true
+    Form.PreviewKeyDown.Add((fun e -> e.IsInputKey <- true))
+
+    let registeredKeys = Set([Keys.Left; Keys.Right; Keys.Space])
+
+    let keyMatrixRef = ref (KeyMatrix.Matrix.Create registeredKeys)
+
+    let keyDown key = keyMatrixRef := KeyMatrix.pressKey keyMatrixRef.Value key
+    let keyUp key = keyMatrixRef := KeyMatrix.releaseKey keyMatrixRef.Value key
+
+    Form.KeyDown.Add((fun e -> keyDown e.KeyCode))
+    Form.KeyUp.Add((fun e -> keyUp e.KeyCode))
+
+    use ScreenControl = new ScreenControl(keyMatrixRef)
 
     ScreenControl.Size <- Size(GameParameters.ScreenX, GameParameters.ScreenY)
     ScreenControl.Location <- Point(10, 10)
@@ -38,10 +52,6 @@ let main argv =
     Timer.Interval <- GameParameters.FrameInterval
     Timer.Start()
 
-    Form.KeyPreview <- true
-    Form.PreviewKeyDown.Add((fun e -> e.IsInputKey <- true))
-    Form.KeyDown.Add((fun e -> KeyboardIo.KeyDown e.KeyCode))
-    Form.KeyUp.Add((fun e -> KeyboardIo.KeyUp e.KeyCode))
 
     Application.Run(Form)
 

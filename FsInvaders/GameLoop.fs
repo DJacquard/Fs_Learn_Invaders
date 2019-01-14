@@ -8,6 +8,8 @@ open Invaders
 open Animation
 
 module GameState =
+    open PlayerLogic.PlayerData
+
     [<Struct>]
     type LevelNumber = LevelNumber of int
 
@@ -45,22 +47,30 @@ type InGameAnimations = {
     Intro: AnimationFactory
     }
 
+type GameLoopInput = {
+    PlayerControls: PlayerLogic.PlayerData.PlayerControls
+    ViewSize: Geometry.Size
+    Random: Random.RandomSource
+    Animations: InGameAnimations
+}
+
+
 
 open GameState
 open Level
 
-let runLevel levelData viewSize =
+let runLevel levelData { PlayerControls=playerControls; ViewSize=viewSize; Random=random } =
 
     if levelData.PlayerHitFrameCount = 0 then
         
         let levelData = 
             levelData
             |> MoveInvaders viewSize
-            |> UpdateInvaderShots viewSize
-            |> MovePlayer viewSize
-            |> UpdatePlayerShots viewSize
+            |> UpdateInvaderShots (Random.nextInRange random) viewSize
+            |> MovePlayer playerControls viewSize
+            |> UpdatePlayerShots playerControls viewSize
 
-        let result = InvaderLogic.Collision.InvaderShotCollisionDetection levelData.PlayerShots levelData.InvaderData.Invaders
+        let result = InvaderLogic.Collision.InvaderShotCollisionDetection levelData.Player.Shots levelData.InvaderData.Invaders
 
         let (invaderHits, shotHits) = result.Invaders 
                                         |> List.filter (function (_, None) -> false | _ -> true) 
@@ -75,11 +85,11 @@ let runLevel levelData viewSize =
 
         let newHits = shotHits |> List.choose id
 
-        let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.PlayerX viewSize.Height levelData.InvaderShots
+        let playerHit = PlayerLogic.Collision.checkPlayerHit levelData.Player.Position viewSize.Height levelData.InvaderShots
 
         let newHits = 
             if playerHit then 
-                Point.create (levelData.PlayerX + (PlayerWidth / 2)) (viewSize.Height - (PlayerHeight / 2))::newHits
+                Point.create (levelData.Player.Position + (PlayerWidth / 2)) (viewSize.Height - (PlayerHeight / 2))::newHits
             else
                 newHits
 
@@ -90,7 +100,7 @@ let runLevel levelData viewSize =
             match InvaderGrid.isEmpty levelData.InvaderData.Invaders.InvaderBlock with
             | true -> Complete
             | _ -> {levelData with 
-                        PlayerShots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item
+                        Player = {levelData.Player with Shots = if playerHit then [] else result.RemainingShots |> List.map ItemAndBoundingBox.item}
                         InvaderShots = if playerHit then [] else levelData.InvaderShots
                         FrameCount = levelData.FrameCount + 1
                         PlayerHitFrameCount = if playerHit then 120 else 0
@@ -107,9 +117,9 @@ let createLevel() =
 
     let invaders = ScreenInvaderBlock.create area.Width area.Height GameParameters.NumberOfInvaderColumns GameParameters.NumberOfInvaderRows |> InvaderLogic.create
 
-    LevelData.Default invaders
+    LevelData.Default invaders 
 
-let runWaitScreen waitScreen wait animations inGameState =
+let runWaitScreen waitScreen wait inGameState gameLoopInput =
     match waitScreen with
     | LevelIntro anim -> 
         match Animation.animate anim with
@@ -120,19 +130,19 @@ let runWaitScreen waitScreen wait animations inGameState =
         | ScreenWait 0 as sw -> 
             match waitScreen with
             | LevelIntro _ -> Level (createLevel())
-            | LevelComplete -> (LevelIntro (animations.Intro inGameState) , ScreenWait (2*40)) |> WaitScreen
+            | LevelComplete -> (LevelIntro (gameLoopInput.Animations.Intro inGameState) , ScreenWait (2*40)) |> WaitScreen
             | GameOver -> (GameOver, sw) |> WaitScreen
         | ScreenWait frame -> 
             (waitScreen, ScreenWait (frame - 1)) |> WaitScreen
 
-let runLevelWrapper gameState viewSize animationFactory =
+let runLevelWrapper gameState gameLoopInput =
     let updateLevelState levelState = {gameState with LevelState = levelState }
 
     let newHits, inGameState =
         match gameState.LevelState with
-        | WaitScreen (waitScreen, wait) -> ([], {gameState with LevelState = runWaitScreen waitScreen wait animationFactory gameState.SubState})
+        | WaitScreen (waitScreen, wait) -> ([], {gameState with LevelState = runWaitScreen waitScreen wait gameState.SubState gameLoopInput})
         | Level levelData -> 
-            let newHits, levelResult = runLevel levelData viewSize
+            let newHits, levelResult = runLevel levelData gameLoopInput
             (newHits,
                 match levelResult with
                 | Continue newLevelData -> newLevelData |> Level |> updateLevelState
@@ -149,16 +159,19 @@ let runLevelWrapper gameState viewSize animationFactory =
     
     (newHits, inGameState |> InGame)
 
-let runStartScreen state viewSize animations =
-    match KeyboardIo.IsFire() with
-    | true ->
-        let subState = {Level = LevelNumber 1; Lives = NumberOfLives.FromInt 3}
-        {LevelState = (LevelIntro (animations.Intro subState), ScreenWait (2*40)) |> WaitScreen; SubState = subState} |> InGame
+let runStartScreen isStart state createLevel =
+    match isStart with
+    | true -> createLevel()
     | false -> state
 
-let run state viewSize animations =
+let run gameLoopInput state =
+
+    let createLevel() =
+        let subState = {Level = LevelNumber 1; Lives = NumberOfLives.FromInt 3}
+        {LevelState = (LevelIntro (gameLoopInput.Animations.Intro subState), ScreenWait (2*40)) |> WaitScreen; SubState = subState} |> InGame
+
     match state with
-    | StartScreen -> ([], runStartScreen state viewSize animations)
+    | StartScreen -> ([], runStartScreen gameLoopInput.PlayerControls.IsTrigger state createLevel)
     | InGame {LevelState = WaitScreen (GameOver, ScreenWait 0)} -> ([], StartScreen)
-    | InGame gameState -> runLevelWrapper gameState viewSize animations
+    | InGame gameState -> runLevelWrapper gameState gameLoopInput
 

@@ -1,8 +1,8 @@
 ﻿namespace Invaders
 
 module InvaderMoving =
-
-    type HorizontalDirection = Left | Right
+    open Movement
+    
     type InvaderDirection = Horizontal of HorizontalDirection | Down of HorizontalDirection
 
     let areInvadersAtLeftEdgeOfScreen moveDistance invaders = ScreenInvaderBlock.leftEdge invaders - moveDistance < 0

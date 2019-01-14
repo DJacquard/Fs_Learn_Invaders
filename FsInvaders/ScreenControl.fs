@@ -5,9 +5,12 @@ open System.Drawing
 open Game
 open System
 open GameLoop
+open GameScreen
+open Random
+open PlayerLogic.PlayerData
+open WinFormsTypes
 
-
-type ScreenControl() as this =
+type ScreenControl(keyMatrix: Ref<KeyMatrix.Matrix>) as this =
     class
         inherit Control()
 
@@ -25,7 +28,7 @@ type ScreenControl() as this =
 
         let animations = {Intro = Animations.testAnimation graphicsRef}
 
-        member val GameScreen = GameScreen.Default with get, set
+        member val GameScreen = GameScreen.Default() with get, set
 
         override _this.OnPreviewKeyDown(e: PreviewKeyDownEventArgs) =
             base.OnPreviewKeyDown(e)
@@ -39,19 +42,33 @@ type ScreenControl() as this =
 
             e.Graphics.FillRectangle (Brushes.Black, System.Drawing.Rectangle(Point(0, 0), this.Size))
             
-            let surface = Drawing.DrawSurface.Surface (e.Graphics, this.Size)
-
             this.Font <- new Font(new FontFamily("Arial"), 16.0f, FontStyle.Bold, GraphicsUnit.Pixel)
 
             let size = Size.create (this.Size.Width) (this.Size.Height)
 
-            GameScreen.draw surface size this.ClientRectangle e.Graphics this.Font random (this.GameScreen)
+            Renderer.draw e.Graphics size this.ClientRectangle e.Graphics this.Font random (this.GameScreen)
 
         member this.Tick() =
 
+            let random = {
+                NextInRange = (fun min max -> random.Next(min, max))
+                NextInRangeF = (fun min max -> random.NextDouble() * (max - min) + min |> float32)
+                }
+
             let viewSize = Size.create (this.Size.Width) (this.Size.Height)
 
-            this.GameScreen <- this.GameScreen |> GameScreen.update random viewSize animations
+            let isKeyPressed = KeyMatrix.isKeyPressed keyMatrix.Value
+            let playerControls = {
+                IsLeft = isKeyPressed System.Windows.Forms.Keys.Left
+                IsRight = isKeyPressed System.Windows.Forms.Keys.Right
+                IsTrigger = isKeyPressed System.Windows.Forms.Keys.Space
+            }
+
+            let gameLoopInput = {PlayerControls = playerControls; ViewSize = (Size.create (viewSize.Width) (viewSize.Height - GameParameters.hudHeight)); Random = random; Animations = animations}
+
+            let frameData = { GameData = this.GameScreen; GameLoopInput = gameLoopInput; FrameSize = viewSize }
+
+            this.GameScreen <- GameScreen.update frameData
 
             this.Invalidate()
 

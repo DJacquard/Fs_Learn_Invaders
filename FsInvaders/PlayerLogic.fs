@@ -1,48 +1,66 @@
 ﻿module PlayerLogic
 
+module PlayerData =
+    type PlayerControls = {
+        IsLeft: bool
+        IsRight: bool
+        IsTrigger: bool
+    }
+
+    type TriggerLatchState = TriggerLatchState of bool
+
+    type Player = {
+        TriggerLatch: TriggerLatchState
+        Position: int
+        Shots: Point list
+    }
+    with static member Create() = {TriggerLatch = false |> TriggerLatchState; Position = 0; Shots = []}
+
+
+open PlayerData
+
 module Movement =
-    type Direction = Stay | Left | Right
+    open Movement
+    type Direction = Stationary | Moving of HorizontalDirection
 
     type FireWeapon = No | Yes
 
     open GameParameters
 
-    let private nextMove x width =
-        match KeyboardIo.IsLeft(), KeyboardIo.IsRight() with
-                  | true, false when x - PlayerSpeed > 0 -> Left
-                  | false, true when x + PlayerSpeed < width -> Right
-                  | _ -> Stay
+    let private nextMove player playerControls width =
+        match (playerControls.IsLeft), (playerControls.IsRight) with
+                  | true, false when player.Position - PlayerSpeed > 0 -> HorizontalDirection.Left |> Moving
+                  | false, true when player.Position + PlayerSpeed < width -> HorizontalDirection.Right |> Moving
+                  | _ -> Stationary
 
-    let movePlayer currentX width =
-        currentX +
-            match nextMove currentX width with
-            | Left -> -PlayerSpeed
-            | Right -> PlayerSpeed
+    let movePlayer player playerControls width =
+        player.Position +
+            match nextMove player playerControls width with
+            | Moving direction -> match direction with
+                                    | Left -> -PlayerSpeed
+                                    | Right -> PlayerSpeed
             | _ -> 0
+        |> (fun newX -> {player with Position = newX})
 
 module Shooting =
 
-    let CheckFire x =
-        match KeyboardIo.IsFire() with 
-        | true -> x + 15 |> Some 
-        | false -> None
-
     let updateShotPositions = 
         let moveShot = Point.moveY -10
-
         let removeShots shot = shot.Y > 0
-
         List.filter removeShots >> List.map moveShot
 
     let prefixPlayerShot playerX viewHeight shots =
-        let fire = CheckFire playerX 
-        match fire with
-        | Some x ->
-            let newShot = Point.create x (viewHeight - 40)
-            newShot :: shots
-        | None -> shots
+        let newShot = Point.create (playerX + 15) (viewHeight - 40)
+        newShot :: shots
 
-    let updateShots playerX viewHeight = updateShotPositions >> prefixPlayerShot playerX viewHeight
+
+    let updateShots player playerControls viewHeight = 
+        let updatedShots = updateShotPositions player.Shots
+        match player.TriggerLatch, (playerControls.IsTrigger) with
+        | (TriggerLatchState false, true) -> (updatedShots |> prefixPlayerShot player.Position viewHeight, TriggerLatchState true)
+        | (_, triggerState) -> (updatedShots, TriggerLatchState triggerState)
+        |> (fun (shots, latch) -> {player with Shots = shots; TriggerLatch = latch})
+
 
 module Collision =
     open Invaders

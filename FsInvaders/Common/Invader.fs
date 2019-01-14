@@ -11,9 +11,9 @@ module Invader =
 
     let create() = Invader true
 
-    let value (Invader invader) = invader
+    let value (Invader isAlive) = isAlive
 
-    let apply f (Invader invader) = f invader |> Invader
+    let apply f (Invader isAlive) = f isAlive |> Invader
 
     let isAlive = value
 

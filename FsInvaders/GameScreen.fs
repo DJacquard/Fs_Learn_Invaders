@@ -2,11 +2,7 @@
 
 open GameLoop
 open Particles
-open ItemDrawing
-open System.Drawing
-open GameLoop.GameState
-open GameParameters
-open System
+//open System
 
 
 module FrameRate =
@@ -29,14 +25,14 @@ module FrameRate =
         else
             frameRate
 
-type T = {
+type VariableGameData = {
     gameState: GameState.State
     explosions: ParticleCloud.ParticleCloud list
     starfields: StarField.Starfield list
     frameRate: FrameRate.T
         }
 
-let Default =
+let Default() =
     {
         gameState = GameLoop.GameState.State.Default
         explosions = []
@@ -44,73 +40,31 @@ let Default =
         frameRate = FrameRate.Default
     }
 
-let draw surface size (clientRectangle: System.Drawing.Rectangle) (graphics: Graphics) (font: Font) (random: Random) state =
-    graphics.DrawString(state.frameRate.rate.ToString(), font, Brushes.White, PointF(0.0f,0.0f))
+type FrameData = {
+    FrameSize: Geometry.Size
+    GameData: VariableGameData
+    GameLoopInput: GameLoopInput
+    }
 
-    let toRectangleF r = RectangleF.op_Implicit(r)
 
-    let drawHud (LevelNumber level) lives =
-        graphics.DrawLine(Pens.Orange, Point(0, hudHeight - 1), Point(size.Width, hudHeight - 1))
-        use sf = new StringFormat()
-        sf.LineAlignment <- StringAlignment.Far
-        sf.Alignment <- StringAlignment.Near
-        graphics.DrawString(sprintf "Level %d" level, font, Brushes.Orange, RectangleF(0.0f, 0.0f, float32 size.Width, float32 hudHeight - 1.0f), sf)
+let update frameData =
+    let newHits, gameState = GameLoop.run frameData.GameLoopInput frameData.GameData.gameState 
 
-        sf.Alignment <- StringAlignment.Far
-        graphics.DrawString(sprintf "Lives %d" (valueLives lives), font, Brushes.Orange, RectangleF(0.0f, 0.0f, float32 size.Width, float32 hudHeight - 1.0f), sf)
-
-    let drawStringCentre brush s = 
-        use sf = new StringFormat()
-        sf.LineAlignment <- StringAlignment.Center
-        sf.Alignment <- StringAlignment.Center
-        graphics.DrawString(s, font, brush, toRectangleF clientRectangle, sf)
-
-    let drawWaitScreen screenType =
-        match screenType with
-        | LevelIntro animation -> //drawStringCentre Brushes.Orange (sprintf "Get ready\r\nLevel: %d\r\nRemaining lives: %d" (valueLevelNumber gameState.Level) (valueLives gameState.Lives))
-            Animation.draw animation
-        | LevelComplete -> drawStringCentre Brushes.Yellow "Level complete"
-        | GameOver -> drawStringCentre Brushes.Red "Game Over"
-
-    let drawLevel ({LevelState = levelState; SubState = subState} as gameState) =
-        drawHud subState.Level subState.Lives
-        state.starfields |> List.iter (StarField.draw surface)
-        match levelState with
-        | WaitScreen (screenType,_) -> drawWaitScreen screenType
-        | Level levelData ->
-            graphics.TranslateTransform(0.0f, float32 hudHeight)            
-            DrawInvaders.DrawInvaders graphics levelData.InvaderData.Invaders
-            if levelData.PlayerHitFrameCount <= 0 then
-                DrawPlayer.Draw graphics levelData.PlayerX ((size.Height - hudHeight) - PlayerHeight)
-            levelData.PlayerShots |> List.iter (DrawPlayer.DrawShot graphics)
-            levelData.InvaderShots |> List.iter (DrawInvaders.DrawShot graphics)
-
-    use brush = new SolidBrush(Color.FromArgb(random.Next(0, 255), random.Next(0, 255), random.Next(0, 255)))
-
-    match state.gameState with
-    | StartScreen -> drawStringCentre brush "Spaced invaders"
-    | InGame inGameState -> drawLevel inGameState
-
-    state.explosions |> Seq.iter (fun e -> DrawExplosion.Draw surface e)
-
-let update random size animations state =
-    let newHits, gameState = GameLoop.run state.gameState (Size.create (size.Width) (size.Height - GameParameters.hudHeight)) animations
-
-    let explosions = List.append state.explosions (newHits |> List.map (fun s -> Particles.Explosion.create 80 s.X s.Y 5.0))
+    let explosions = List.append frameData.GameData.explosions (newHits |> List.map (fun s -> Particles.Explosion.create 80 s.X s.Y 5.0 frameData.GameLoopInput.Random))
 
     let explosions = explosions |> List.map (fun s -> Particles.Explosion.update s 0.05f)
 
-    let explosions = explosions |> List.filter (fun s -> (Explosion.top s).Y <= single size.Height)
+    let explosions = explosions |> List.filter (fun s -> (Explosion.top s).Y <= single frameData.FrameSize.Height)
 
     let starfields =
-        if List.length state.starfields < 3 then
-                [for i in 1 .. 3 do yield StarField.create size (50 - i*10) Brushes.Gray (int (2.0**float i))]
+        if List.length frameData.GameData.starfields < 3 then
+                [for i in 1 .. 3 do yield StarField.create (frameData.GameLoopInput.Random) (frameData.FrameSize) (50 - i*10) (int (2.0**float i))]
             else
-                state.starfields |> List.map (StarField.move random size)
+                frameData.GameData.starfields |> List.map (StarField.move (frameData.GameLoopInput.Random) (frameData.FrameSize))
 
     {
         gameState = gameState
         explosions = explosions
         starfields = starfields
-        frameRate = FrameRate.update (state.frameRate) (Environment.TickCount)
+        frameRate = FrameRate.update (frameData.GameData.frameRate) (System.Environment.TickCount)
     }
